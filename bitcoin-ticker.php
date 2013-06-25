@@ -21,7 +21,7 @@ class BtcTickerWidget extends WP_Widget
  
   function form($instance)
   {
-		$defaults = array( 'title' => 'Ticker', 'delete_cache' => 0, 'cache' => 2, 'show_btc' => 1, 'show_ltc' => 1 );
+		$defaults = array( 'title' => 'Ticker', 'delete_cache' => 0, 'cache' => 15, 'show_mtgoxusd' => 1, 'show_bitstampusd' => 1, 'show_mtgoxeur' => 1, 'show_btcncny' => 1 );
 		$instance = wp_parse_args( (array) $instance, $defaults );
 
 		?>
@@ -34,13 +34,21 @@ class BtcTickerWidget extends WP_Widget
 				<input id="<?php echo $this->get_field_id( 'cache' ); ?>" name="<?php echo $this->get_field_name( 'cache' ); ?>" value="<?php echo $instance['cache']; ?>" style="width:100%;" />
 			</p>
 			<p>
-				<input class="checkbox" type="checkbox" <?php checked( $instance['show_btc'], 1 ); ?> id="<?php echo $this->get_field_id( 'show_btc' ); ?>" name="<?php echo $this->get_field_name( 'show_btc' ); ?>" value="1" /> 
-				<label for="<?php echo $this->get_field_id( 'show_btc' ); ?>">Show Bitcoin quote?</label>
+				<input class="checkbox" type="checkbox" <?php checked( $instance['show_mtgoxusd'], 1 ); ?> id="<?php echo $this->get_field_id( 'show_mtgoxusd' ); ?>" name="<?php echo $this->get_field_name( 'show_mtgoxusd' ); ?>" value="1" /> 
+				<label for="<?php echo $this->get_field_id( 'show_btc' ); ?>">Show MtGoxUSD quote?</label>
 			</p>
 			<p>
-				<input class="checkbox" type="checkbox" <?php checked( $instance['show_ltc'], 1 ); ?> id="<?php echo $this->get_field_id( 'show_ltc' ); ?>" name="<?php echo $this->get_field_name( 'show_ltc' ); ?>" value="1" /> 
-				<label for="<?php echo $this->get_field_id( 'show_ltc' ); ?>">Show Litecoin quote?</label>
+				<input class="checkbox" type="checkbox" <?php checked( $instance['show_bitstampusd'], 1 ); ?> id="<?php echo $this->get_field_id( 'show_bitstampusd' ); ?>" name="<?php echo $this->get_field_name( 'show_bitstampusd' ); ?>" value="1" /> 
+				<label for="<?php echo $this->get_field_id( 'show_ltc' ); ?>">Show BitstampUSD quote?</label>
 			</p>
+      <p>
+        <input class="checkbox" type="checkbox" <?php checked( $instance['show_mtgoxeur'], 1 ); ?> id="<?php echo $this->get_field_id( 'show_mtgoxeur' ); ?>" name="<?php echo $this->get_field_name( 'show_mtgoxeur' ); ?>" value="1" /> 
+        <label for="<?php echo $this->get_field_id( 'show_btc' ); ?>">Show MtGoxEUR quote?</label>
+      </p>
+      <p>
+        <input class="checkbox" type="checkbox" <?php checked( $instance['show_btcncny'], 1 ); ?> id="<?php echo $this->get_field_id( 'show_btcncny' ); ?>" name="<?php echo $this->get_field_name( 'show_btcncny' ); ?>" value="1" /> 
+        <label for="<?php echo $this->get_field_id( 'show_btc' ); ?>">Show btcnCNY quote?</label>
+      </p>
 			
 			
 			<p>
@@ -58,8 +66,10 @@ class BtcTickerWidget extends WP_Widget
     if (is_numeric($new_instance['cache']) and $new_instance['cache'] >= 1 and $new_instance['cache'] <= 120) {
     	$instance['cache'] = $new_instance['cache'];
   	}
-    $instance['show_btc'] = $new_instance['show_btc'];
-    $instance['show_ltc'] = $new_instance['show_ltc'];
+    $instance['show_mtgoxusd'] = $new_instance['show_mtgoxusd'];
+    $instance['show_bitstampusd'] = $new_instance['show_bitstampusd'];
+    $instance['show_mtgoxeur'] = $new_instance['show_mtgoxeur'];
+    $instance['show_btcncny'] = $new_instance['show_btcncny'];
     if ($new_instance['delete_cache'] == 1) {
     	$this->deleteCache();
     }
@@ -85,16 +95,18 @@ class BtcTickerWidget extends WP_Widget
       echo $before_title . $title . $after_title;
 
 		$cache = $instance['cache'] * 60;
-		$show_btc = $instance['show_btc'];
-		$show_ltc = $instance['show_ltc'];
+		$show_mtgoxusd = $instance['show_mtgoxusd'];
+		$show_bitstampusd = $instance['show_bitstampusd'];
+    $show_mtgoxeur = $instance['show_mtgoxeur'];
+    $show_btcncny = $instance['show_btcncny'];
 
-    $this->renderTickers($cache, $show_btc, $show_ltc);
+    $this->renderTickers($cache, $show_mtgoxusd, $show_bitstampusd, $show_mtgoxeur, $show_btcncny);
     
     echo $after_widget;
   }
   
   // draws the actual ticker prices
-  function renderTickers($cachetime, $btc, $ltc) 
+  function renderTickers($cachetime, $mtgoxusd, $bitstampusd, $mtgoxeur, $btcncny) 
   {
 		$cachefile = plugin_dir_path( __FILE__ ).CACHE_FILENAME;
 		
@@ -111,19 +123,24 @@ class BtcTickerWidget extends WP_Widget
 			?>
 			<table class="crypto-ticker-tbl"><tr><td><table class="crypto-ticker-tbl">
 			<?php
-			
+			$btccharts = $this->get_data('http://api.bitcoincharts.com/v1/markets.json');
+      $btccharts = json_decode($btccharts, true);
 			// display each ticker quote
-			if ($btc == 1) {
-				$mtgox_json = $this->get_data('http://api.bitcoincharts.com/v1/markets.json');
-				$mtgox_decoded = json_decode($mtgox_json, true);
-				$this->displayTickerLine('Bitcoin', 'BTC', $mtgox_decoded[109]['close'], $mtgox_decoded[109]['currency'], 'Mt. Gox', 'http://www.mtgox.com');
+			if ($mtgoxusd == 1) {
+				$this->displayTickerLine('Mt.GoxUSD', 'BTC', number_format($btccharts[115]['close'], 4), $btccharts[115]['currency'], 'Mt.Gox', 'http://www.mtgox.com');
 			}
 			
-			if ($ltc == 1) {
-				$btce_json = $this->get_data('https://btc-e.com/api/2/ltc_usd/ticker');
-				$btce_decoded = json_decode($btce_json, true);
-				$this->displayTickerLine('Litecoin', 'LTC', '$'.number_format(round($btce_decoded['ticker']['last'], 2), 2, '.', ''), 'USD', 'BTC-e', 'http://www.btc-e.com');
+			if ($bitstampusd == 1) {
+				$this->displayTickerLine('BitstampUSD', 'BTC', number_format($btccharts[99]['close'], 4), $btccharts[99]['currency'], 'Bitstamp', 'http://www.bitstamp.net');
 			}
+
+      if ($mtgoxeur == 1) {
+        $this->displayTickerLine('Mt.GoxEUR', 'BTC', number_format($btccharts[34]['close'], 4), $btccharts[34]['currency'], 'Mt.Gox', 'http://www.mtgox.com');
+      }
+
+      if ($btcncny == 1) {
+        $this->displayTickerLine('btcnCNY', 'BTC', number_format($btccharts[16]['close'], 4), $btccharts[16]['currency'], 'Bitcoin China', 'http://btcchina.com/');
+      }
 			
 			// end tables & show quote disclaimer
 			?>
@@ -145,10 +162,7 @@ class BtcTickerWidget extends WP_Widget
   function displayTickerLine($name, $abbrev, $quote, $currency, $exchangeName, $exchangeUrl)
   {
 		?>
-		<tr><td class="crypto-ticker-cell-icon">
-				<img src="<?php echo plugins_url( 'img/'.$abbrev.'.png' , __FILE__ ); ?>" title="<?php echo $name; ?>" class="crypto-ticker-icon" />
-			</td>
-			<td class="crypto-ticker-cell-abbrev">
+		<tr><td class="crypto-ticker-cell-abbrev">
 				1 <?php echo $abbrev; ?> = 
 			</td>
 			<td class="crypto-ticker-cell-quote">
@@ -176,11 +190,11 @@ class BtcTickerWidget extends WP_Widget
 }
 
 function prefix_add_style() {
-	wp_register_style( 'crypto-ticker-style', plugins_url('css/crypto-ticker.css', __FILE__) );
-	wp_enqueue_style( 'crypto-ticker-style' );
+	wp_register_style( 'bitcoin-ticker-style', plugins_url('css/bitcoin-ticker.css', __FILE__) );
+	wp_enqueue_style( 'bitcoin-ticker-style' );
 }
 
 add_action( 'wp_enqueue_scripts', 'prefix_add_style' );
-add_action( 'widgets_init', create_function('', 'return register_widget("CryptoTickerWidget");') );
+add_action( 'widgets_init', create_function('', 'return register_widget("BtcTickerWidget");') );
 
 ?>
